@@ -26,7 +26,6 @@ const borshSchema = {
       ['receipt_data', ['u8']],
       ['header_data', ['u8']],
       ['proof', [['u8']]],
-      ['skip_bridge_call', 'bool'],
     ],
   },
 }
