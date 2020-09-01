@@ -15,7 +15,6 @@ const borshSchema = {
   initInput: {
     kind: 'struct',
     fields: [
-      ['validate_ethash', 'bool'],
       ['dags_start_epoch', 'u64'],
       ['dags_merkle_roots', ['H128']],
       ['first_header', ['u8']],
@@ -115,14 +114,13 @@ class EthOnNearClientContract extends BorshContract {
   }
 
   // Call initialization methods on the contract.
-  // If validate_ethash is true will do ethash validation otherwise it won't.
-  async maybeInitialize(validate_ethash, robustWeb3) {
+  async maybeInitialize(robustWeb3) {
     await this.accessKeyInit()
     let initialized = false
     try {
       // @ts-ignore
       initialized = await this.initialized()
-    } catch (e) {}
+    } catch (e) { }
     if (!initialized) {
       console.log('EthOnNearClient is not initialized, initializing...')
       const last_block_number = await robustWeb3.getBlockNumber()
@@ -132,7 +130,6 @@ class EthOnNearClientContract extends BorshContract {
       // @ts-ignore
       await this.init(
         {
-          validate_ethash: validate_ethash,
           dags_start_epoch: 0,
           dags_merkle_roots: roots.dag_merkle_roots,
           first_header: blockRlp,
