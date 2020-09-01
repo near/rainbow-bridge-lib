@@ -40,7 +40,6 @@ class InitNearContracts {
 
     const nearNodeUrl = RainbowConfig.getParam('near-node-url')
     const nearNetworkId = RainbowConfig.getParam('near-network-id')
-    const validateEthash = RainbowConfig.getParam('near-client-validate-ethash')
 
     const clientPk = nearlib.KeyPair.fromString(clientSk).getPublicKey()
     const proverPk = nearlib.KeyPair.fromString(proverSk).getPublicKey()
@@ -97,7 +96,7 @@ class InitNearContracts {
       clientAccount
     )
     const robustWeb3 = new RobustWeb3(RainbowConfig.getParam('eth-node-url'))
-    await clientContract.maybeInitialize(validateEthash === 'true', robustWeb3)
+    await clientContract.maybeInitialize(robustWeb3)
     const proverContract = new EthOnNearProverContract(
       new nearlib.Account(near.connection, proverAccount),
       proverAccount
