@@ -49,7 +49,7 @@ class EthContractInitializer {
       try {
         // Only WebSocket provider can close.
         web3.currentProvider.connection.close()
-      } catch (e) {}
+      } catch (e) { }
     } catch (e) {
       console.log(e)
       return false
@@ -124,7 +124,7 @@ class InitEthClient {
     try {
       // Only WebSocket provider can close.
       web3.currentProvider.connection.close()
-    } catch (e) {}
+    } catch (e) { }
     const success = await ethContractInitializer.execute(
       contractName,
       [
@@ -132,7 +132,7 @@ class InitEthClient {
         lockEthAmount,
         lockDuration,
       ],
-      3000000
+      5000000
     )
     if (!success) {
       console.log("Can't deploy", contractName)
