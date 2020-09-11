@@ -63,7 +63,11 @@ class TransferETHERC20ToNear {
       const transaction = await robustWeb3.callContract(
         ethTokenLockerContract,
         'lockToken',
-        [Number(amount), nearReceiverAccount],
+        [
+          RainbowConfig.getParam('eth-erc20-address'),
+          Number(amount),
+          nearReceiverAccount,
+        ],
         {
           from: ethSenderAccount,
           gas: 5000000,
@@ -179,10 +183,11 @@ class TransferETHERC20ToNear {
     })
   }
 
-  static async mint({
+  static async deposit({
     proof_locker,
+    nearFactoryContract,
+    nearFactoryContractBorsh,
     nearTokenContract,
-    nearTokenContractBorsh,
     new_owner_id,
   }) {
     // @ts-ignore
@@ -194,7 +199,7 @@ class TransferETHERC20ToNear {
     )
     // @ts-ignore
     try {
-      await nearTokenContractBorsh.mint(
+      await nearFactoryContractBorsh.deposit(
         proof_locker,
         new BN('300000000000000'),
         // We need to attach tokens because minting increases the contract state, by <600 bytes, which
@@ -204,7 +209,7 @@ class TransferETHERC20ToNear {
       )
       console.log('Transferred')
     } catch (e) {
-      console.log('Mint failed with error:')
+      console.log('Deposit failed with error:')
       console.log(e)
       TransferETHERC20ToNear.showRetryAndExit()
     }
@@ -298,19 +303,27 @@ class TransferETHERC20ToNear {
     )
     await verifyAccount(near, nearMasterAccountId)
 
-    const nearTokenContract = new nearlib.Contract(
+    const nearFactoryContract = new nearlib.Contract(
       nearMasterAccount,
       RainbowConfig.getParam('near-fun-token-account'),
       {
-        changeMethods: ['new'],
+        changeMethods: ['deposit'],
+        viewMethods: [],
+      }
+    )
+    const nearTokenContract = new nearlib.Contract(
+      nearMasterAccount,
+      RainbowConfig.getParam('near-erc20-account'),
+      {
+        changeMethods: [],
         viewMethods: ['get_balance'],
       }
     )
-    const nearTokenContractBorsh = new NearMintableToken(
+    const nearFactoryContractBorsh = new NearMintableToken(
       nearMasterAccount,
       RainbowConfig.getParam('near-fun-token-account')
     )
-    await nearTokenContractBorsh.accessKeyInit()
+    await nearFactoryContractBorsh.accessKeyInit()
 
     const extractor = new EthProofExtractor()
     extractor.initialize(RainbowConfig.getParam('eth-node-url'))
@@ -364,9 +377,10 @@ class TransferETHERC20ToNear {
       transferLog = TransferETHERC20ToNear.loadTransferLog()
     }
     if (transferLog.finished === 'block-safe') {
-      await TransferETHERC20ToNear.mint({
+      await TransferETHERC20ToNear.deposit({
+        nearFactoryContract,
+        nearFactoryContractBorsh,
         nearTokenContract,
-        nearTokenContractBorsh,
         ...transferLog,
       })
     }

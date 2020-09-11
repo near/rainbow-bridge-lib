@@ -44,7 +44,10 @@ class EthContractInitializer {
         'to',
         `${txContract.options.address}`
       )
-      RainbowConfig.setParam(address, txContract.options.address)
+      RainbowConfig.setParam(
+        address,
+        normalizeEthKey(txContract.options.address)
+      )
       RainbowConfig.saveConfig()
       try {
         // Only WebSocket provider can close.
@@ -97,7 +100,6 @@ class InitEthLocker {
     const success = await ethContractInitializer.execute(
       contractName,
       [
-        RainbowConfig.getParam('eth-erc20-address'),
         Buffer.from(RainbowConfig.getParam('near-fun-token-account'), 'utf8'),
         RainbowConfig.getParam('eth-prover-address'),
       ],
