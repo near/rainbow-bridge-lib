@@ -63,7 +63,11 @@ class TransferETHERC20ToNear {
       const transaction = await robustWeb3.callContract(
         ethTokenLockerContract,
         'lockToken',
-        [Number(amount), nearReceiverAccount],
+        [
+          RainbowConfig.getParam('eth-erc20-address'),
+          Number(amount),
+          nearReceiverAccount,
+        ],
         {
           from: ethSenderAccount,
           gas: 5000000,
