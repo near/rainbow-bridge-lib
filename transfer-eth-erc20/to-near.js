@@ -2,11 +2,8 @@ const utils = require('ethereumjs-util')
 const BN = require('bn.js')
 const fs = require('fs')
 const nearlib = require('near-api-js')
-const {
-  EthProofExtractor,
-  receiptFromWeb3,
-  logFromWeb3,
-} = require('../eth-proof-extractor')
+const { Receipt, Log } = require('eth-object')
+const { EthProofExtractor } = require('../eth-proof-extractor')
 const { verifyAccount } = require('../rainbow/helpers')
 const { NearMintableToken } = require('../near-mintable-token')
 const { RainbowConfig } = require('../config')
@@ -82,85 +79,43 @@ class TransferETHERC20ToNear {
     }
   }
 
-  static async findProof({ extractor, lockedEvent, web3 }) {
-    const receipt = await extractor.extractReceipt(lockedEvent.transactionHash)
-    const block = await extractor.extractBlock(receipt.blockNumber)
+  static async findProof(lockedEvent) {
+    const robustWeb3 = new RobustWeb3(RainbowConfig.getParam('eth-node-url'))
+    const extractor = new EthProofExtractor(RainbowConfig.getParam('eth-node-url'))
+    const receipt = await await robustWeb3.getTransactionReceipt(lockedEvent.transactionHash)
+    const block = await robustWeb3.getBlock(lockedEvent.blockNumber)
     const tree = await extractor.buildTrie(block)
     const proof = await extractor.extractProof(
-      web3,
-      block,
+      lockedEvent.blockNumber,
       tree,
       receipt.transactionIndex
     )
-    let txLogIndex = -1
-
-    let logFound = false
-    let log
-    for (let receiptLog of receipt.logs) {
-      txLogIndex++
-      const blockLogIndex = receiptLog.logIndex
-      if (blockLogIndex === lockedEvent.logIndex) {
-        logFound = true
-        log = receiptLog
-        break
-      }
-    }
-    if (logFound) {
-      TransferETHERC20ToNear.recordTransferLog({
-        finished: 'find-proof',
-        proof,
-        log,
-        txLogIndex,
-        receipt,
-        lockedEvent,
-        block,
-      })
-    } else {
+    const log = receipt.logs.find(l => l.logIndex === lockedEvent.logIndex)
+    if (!log) {
       console.log(`Failed to find log for event ${lockedEvent}`)
       TransferETHERC20ToNear.showRetryAndExit()
     }
+    return {
+      log_index: lockedEvent.logIndex,
+      log_entry_data: Log.fromWeb3(log).serialize(),
+      receipt_index: proof.txIndex,
+      receipt_data: Receipt.fromWeb3(receipt).serialize(),
+      header_data: proof.header_rlp,
+      proof: Array.from(proof.receiptProof).map(utils.rlp.encode),
+    }
   }
 
-  static async waitBlockSafe({
-    log,
-    proof,
-    receipt,
-    txLogIndex,
-    lockedEvent,
-    block,
-    ethOnNearClientContract,
-  }) {
-    const log_entry_data = logFromWeb3(log).serialize()
-    const receipt_index = proof.txIndex
-    const receipt_data = receiptFromWeb3(receipt).serialize()
-    const header_data = proof.header_rlp
-    const _proof = []
-    for (const node of proof.receiptProof) {
-      _proof.push(utils.rlp.encode(node))
-    }
-
-    const proof_locker = {
-      log_index: txLogIndex,
-      log_entry_data: log_entry_data,
-      receipt_index: receipt_index,
-      receipt_data: receipt_data,
-      header_data: header_data,
-      proof: _proof,
-    }
-
-    const new_owner_id = lockedEvent.returnValues.accountId
-    const amount = lockedEvent.returnValues.amount
-    console.log(
-      `Transferring ${amount} tokens from ${lockedEvent.returnValues.token} ERC20. From ${lockedEvent.returnValues.sender} sender to ${new_owner_id} recipient`
-    )
-
-    const blockNumber = block.number
+  static async waitBlockSafe({ lockedEvent, ethOnNearClientContract }) {
     // Wait until client accepts this block number.
     while (true) {
       // @ts-ignore
       const last_block_number = (
         await ethOnNearClientContract.last_block_number()
       ).toNumber()
+      // Why should the client decide what's safe?
+      // Shouldn't MintableFungibleToken enforce this?
+      // And a frontend set expectations accordingly?
+      const blockNumber = lockedEvent.blockNumber
       const is_safe = await ethOnNearClientContract.block_hash_safe(blockNumber)
       if (!is_safe) {
         const delay = 10
@@ -174,17 +129,20 @@ class TransferETHERC20ToNear {
     }
     TransferETHERC20ToNear.recordTransferLog({
       finished: 'block-safe',
-      proof_locker,
-      new_owner_id,
     })
   }
 
   static async mint({
-    proof_locker,
+    lockedEvent,
     nearTokenContract,
     nearTokenContractBorsh,
-    new_owner_id,
   }) {
+    const new_owner_id = lockedEvent.returnValues.accountId
+    const amount = lockedEvent.returnValues.amount
+    console.log(
+      `Transferring ${amount} tokens from ${lockedEvent.returnValues.token} ERC20. From ${lockedEvent.returnValues.sender} sender to ${new_owner_id} recipient`
+    )
+
     // @ts-ignore
     const old_balance = await nearTokenContract.get_balance({
       owner_id: new_owner_id,
@@ -195,7 +153,7 @@ class TransferETHERC20ToNear {
     // @ts-ignore
     try {
       await nearTokenContractBorsh.mint(
-        proof_locker,
+        await TransferETHERC20ToNear.findProof(transferLog.lockedEvent),
         new BN('300000000000000'),
         // We need to attach tokens because minting increases the contract state, by <600 bytes, which
         // requires an additional 0.06 NEAR to be deposited to the account for state staking.
@@ -312,9 +270,6 @@ class TransferETHERC20ToNear {
     )
     await nearTokenContractBorsh.accessKeyInit()
 
-    const extractor = new EthProofExtractor()
-    extractor.initialize(RainbowConfig.getParam('eth-node-url'))
-
     const ethTokenLockerContract = new web3.eth.Contract(
       // @ts-ignore
       JSON.parse(
@@ -349,25 +304,17 @@ class TransferETHERC20ToNear {
       transferLog = TransferETHERC20ToNear.loadTransferLog()
     }
     if (transferLog.finished === 'lock') {
-      await TransferETHERC20ToNear.findProof({
-        extractor,
-        lockedEvent: transferLog.lockedEvent,
-        web3,
-      })
-      transferLog = TransferETHERC20ToNear.loadTransferLog()
-    }
-    if (transferLog.finished === 'find-proof') {
       await TransferETHERC20ToNear.waitBlockSafe({
         ethOnNearClientContract,
-        ...transferLog,
+        lockedEvent: transferLog.lockedEvent,
       })
       transferLog = TransferETHERC20ToNear.loadTransferLog()
     }
     if (transferLog.finished === 'block-safe') {
       await TransferETHERC20ToNear.mint({
+        lockedEvent: transferLog.lockedEvent,
         nearTokenContract,
         nearTokenContractBorsh,
-        ...transferLog,
       })
     }
 

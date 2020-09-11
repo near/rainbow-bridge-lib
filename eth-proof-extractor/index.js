@@ -4,27 +4,11 @@ const { encode } = require('eth-util-lite')
 const { promisfy } = require('promisfy')
 const { RobustWeb3 } = require('../rainbow/robust')
 
-function receiptFromWeb3(result) {
-  return Receipt.fromWeb3(result)
-}
-
-function logFromWeb3(result) {
-  return Log.fromWeb3(result)
-}
-
 class EthProofExtractor {
-  initialize(ethNodeURL) {
+  constructor(ethNodeURL) {
     // @ts-ignore
     this.robustWeb3 = new RobustWeb3(ethNodeURL)
     this.web3 = this.robustWeb3.web3
-  }
-
-  async extractReceipt(txHash) {
-    return await this.robustWeb3.getTransactionReceipt(txHash)
-  }
-
-  async extractBlock(blockNumber) {
-    return await this.robustWeb3.getBlock(blockNumber)
   }
 
   async buildTrie(block) {
@@ -43,13 +27,16 @@ class EthProofExtractor {
     return tree
   }
 
-  async extractProof(web3, block, tree, transactionIndex) {
+  async extractProof(block, tree, transactionIndex) {
     const [, , stack] = await promisfy(
       tree.findPath,
       tree
     )(encode(transactionIndex))
 
-    const blockData = await web3.eth.getBlock(block.number)
+    // is this necessary? how different are these?
+    //   * robustWeb3.getBlock (the passed-in block)
+    //   * robustWeb3.web3.eth.getBlock
+    const blockData = await this.web3.eth.getBlock(block.number)
     // Correctly compose and encode the header.
     const header = Header.fromWeb3(blockData)
     return {
@@ -68,5 +55,3 @@ class EthProofExtractor {
 }
 
 exports.EthProofExtractor = EthProofExtractor
-exports.receiptFromWeb3 = receiptFromWeb3
-exports.logFromWeb3 = logFromWeb3
