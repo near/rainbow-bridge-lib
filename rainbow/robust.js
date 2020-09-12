@@ -67,6 +67,13 @@ class RobustWeb3 {
           nonce: Web3.utils.toHex(nonce),
           data: contract.methods[method](...args).encodeABI(),
         }
+        // Call transaction via view method to check if there is specific error.
+        try {
+          await this.web3.eth.call(tx);
+        } catch (error) {
+          console.log(tx.from);
+          console.warn(error);
+        }
 
         let receipt = await promiseWithTimeout(
           5 * 60 * 1000,
