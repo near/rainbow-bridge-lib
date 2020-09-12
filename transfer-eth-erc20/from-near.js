@@ -2,6 +2,7 @@ const Web3 = require('web3')
 const nearlib = require('near-api-js')
 const BN = require('bn.js')
 const fs = require('fs')
+//const assert = require('bsert')
 const bs58 = require('bs58')
 const { toBuffer } = require('eth-util-lite')
 const { verifyAccount } = require('../rainbow/helpers')
@@ -104,51 +105,36 @@ class TransferEthERC20FromNear {
   }
 
   static async findWithdrawInBlock({ txWithdraw, nearSenderAccountId, near }) {
-    // Either hash of the transaction or the receipt. When transaction singe is the same as the fun token address it is
-    // the hash of the transaction, since Near runtime executes contract immediately. Otherwise hash of the receipt
-    // that was executed on another shard.
     try {
       let txReceiptId
       let txReceiptBlockHash
       let idType
-      if (
-        RainbowConfig.getParam('near-fun-token-account') === nearSenderAccountId
-      ) {
-        if (txWithdraw.receipts_outcome.length <= 1) {
-          txReceiptId = txWithdraw.transaction.hash
-          txReceiptBlockHash = txWithdraw.transaction_outcome.block_hash
-          idType = 'transaction'
-        } else {
-          throw new Error(
-            `Expected exactly one receipt when signer and fun token account are the same, but received: ${JSON.stringify(
-              txWithdraw
-            )}`
-          )
-        }
+      /*assert(
+        RainbowConfig.getParam('near-fun-token-account') !== nearSenderAccountId
+      )*/
+      //if (txWithdraw.receipts_outcome.length <= 2) {
+      const receipts = txWithdraw.transaction_outcome.outcome.receipt_ids
+      if (receipts.length === 1) {
+        txReceiptId = receipts[0]
+        txReceiptBlockHash = txWithdraw.receipts_outcome.find(
+          (el) => el.id == txReceiptId
+        ).block_hash
+        idType = 'receipt'
       } else {
-        if (txWithdraw.receipts_outcome.length <= 2) {
-          const receipts = txWithdraw.transaction_outcome.outcome.receipt_ids
-          if (receipts.length === 1) {
-            txReceiptId = receipts[0]
-            txReceiptBlockHash = txWithdraw.receipts_outcome.find(
-              (el) => el.id == txReceiptId
-            ).block_hash
-            idType = 'receipt'
-          } else {
-            throw new Error(
-              `Fungible token transaction call is expected to produce only one receipt, but produced: ${JSON.stringify(
-                txWithdraw
-              )}`
-            )
-          }
-        } else {
-          throw new Error(
-            `Fungible token is not expected to perform cross contract calls: ${JSON.stringify(
-              txWithdraw
-            )}`
-          )
-        }
+        throw new Error(
+          `Fungible token transaction call is expected to produce only one receipt, but produced: ${JSON.stringify(
+            txWithdraw
+          )}`
+        )
       }
+      /*} else {
+        throw new Error(
+          `Fungible token is not expected to perform cross contract calls: ${JSON.stringify(
+            txWithdraw
+          )}`
+        )
+      }*/
+
       // Get block in which the outcome was processed.
       const outcomeBlock = await backoff(10, () =>
         near.connection.provider.block({
