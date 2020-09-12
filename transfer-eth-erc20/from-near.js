@@ -112,7 +112,7 @@ class TransferEthERC20FromNear {
       let txReceiptBlockHash
       let idType
       if (
-        RainbowConfig.getParam('near-erc20-account') === nearSenderAccountId
+        RainbowConfig.getParam('near-fun-token-account') === nearSenderAccountId
       ) {
         if (txWithdraw.receipts_outcome.length <= 1) {
           txReceiptId = txWithdraw.transaction.hash
