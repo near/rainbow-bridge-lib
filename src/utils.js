@@ -1,11 +1,38 @@
-const nearAPI = require('near-api-js');
 const homedir = require('os').homedir();
 const path = require('path');
 const fs = require('fs');
+const assert = require('bsert');
+
+const nearAPI = require('near-api-js');
 const Web3 = require('web3');
 
 const CREDENTIALS_DIR = '.near-credentials';
 const PROJECT_KEY_DIR = './neardev';
+
+async function setupNear(config) {
+    const deps = await createLocalKeyStore(config.networkId, config.keyPath);
+    if (config.keyPath) {
+        delete config.keyPath;
+    }
+    return nearAPI.connect({ networkId: config.networkId, nodeUrl: config.nearNodeUrl, deps });
+}
+
+async function setupEth(config) {
+    const web3 = await getWeb3(config);
+    web3.eth.defaultAccount = addSecretKey(web3, config.ethFromSecretKey);
+    config.ethFrom = web3.eth.defaultAccount;
+    return web3;
+}
+
+/**
+ * Setup connection to NEAR and Ethereum from given configuration.
+ * @param {Object} config Config object which defines nearNodeUrl/ethNodeUrl, networkId and more.
+ */
+async function setupEthNear(config) {
+    const near = await setupNear(config);
+    const web3 = await setupEth(config);
+    return { near, web3 }
+}
 
 /**
  * Remove 0x if prepended
@@ -33,7 +60,6 @@ function normalizeHex(value) {
 async function accountExists(connection, accountId) {
     try {
         const account = new nearAPI.Account(connection, accountId);
-        console.log(account, connection);
         await account.state();
         return true;
     } catch (error) {
@@ -69,7 +95,9 @@ function getWeb3(config) {
 function getEthContract(web3, path, address) {
     const bin = fs.readFileSync(`${path}.full.bin`);
     const abi = fs.readFileSync(`${path}.full.abi`);
-    const contract = new web3.eth.Contract(JSON.parse(abi), address);
+    const contract = new web3.eth.Contract(JSON.parse(abi), address, {
+        from: web3.eth.defaultAccount
+    });
     contract.bin = bin;
     return contract;
 }
@@ -80,7 +108,8 @@ function addSecretKey(web3, secretKey) {
     return account.address;
 }
 
-module.exports = { 
+module.exports = {
+    setupEthNear,
     accountExists,
     remove0x,
     createLocalKeyStore,
