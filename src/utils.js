@@ -9,6 +9,8 @@ const Web3 = require('web3');
 const CREDENTIALS_DIR = '.near-credentials';
 const PROJECT_KEY_DIR = './neardev';
 
+const DEFAULT_GAS = 1000000;
+
 async function setupNear(config) {
     const deps = await createLocalKeyStore(config.networkId, config.keyPath);
     if (config.keyPath) {
@@ -108,6 +110,25 @@ function addSecretKey(web3, secretKey) {
     return account.address;
 }
 
+/**
+ * Wrap pure calls to Web3 contract to handle errors/reverts/gas usage.
+ * TODO: should use RobustWeb3 code.
+ */
+async function ethCallContract(contract, methodName, args) {
+    let dryRun;
+    try {
+        dryRun = await contract.methods[methodName](...args).call();
+        return contract.methods[methodName](...args).send({
+            gas: DEFAULT_GAS
+        });
+    } catch (error) {
+        if (error.message.includes('reverted by the EVM')) {
+            console.warn(dryRun);
+        }
+        throw error;
+    }
+}
+
 module.exports = {
     setupEthNear,
     accountExists,
@@ -115,5 +136,8 @@ module.exports = {
     createLocalKeyStore,
     getWeb3,
     getEthContract,
-    addSecretKey
+    addSecretKey,
+    fromWei: Web3.utils.fromWei,
+    toWei: Web3.utils.toWei,
+    ethCallContract
 };

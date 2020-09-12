@@ -249,6 +249,7 @@ const signAndSendTransaction = async (
         await sendTxnAsync()
       }
     } catch (e) {
+      errorMsg = e.message;
       // sleep to avoid socket hangout on retry too soon
       await sleep(500)
       continue
@@ -268,6 +269,7 @@ const signAndSendTransaction = async (
           break
         }
       } catch (e) {
+        errorMsg = e.message;
         await sleep((j + 1) * 500)
       }
     }
@@ -299,7 +301,6 @@ const signAndSendTransaction = async (
       continue
     }
   }
-
   throw new Error(errorMsg)
 }
 
