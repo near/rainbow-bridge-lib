@@ -103,7 +103,7 @@ class InitEthLocker {
         Buffer.from(RainbowConfig.getParam('near-fun-token-account'), 'utf8'),
         RainbowConfig.getParam('eth-prover-address'),
       ],
-      3000000
+      5000000
     )
     if (!success) {
       console.log("Can't deploy", contractName)
@@ -134,7 +134,7 @@ class InitEthClient {
         lockEthAmount,
         lockDuration,
       ],
-      3000000
+      5000000
     )
     if (!success) {
       console.log("Can't deploy", contractName)

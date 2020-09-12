@@ -30,6 +30,7 @@
     "near-api-js": "^0.26.0",
     "node-fetch": "^2.6.0",
     "promisfy": "^1.2.0",
+    "tweetnacl": "^1.0.3",
     "web3": "=1.2.6"
   },
   "devDependencies": {
