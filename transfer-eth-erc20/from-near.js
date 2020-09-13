@@ -92,6 +92,7 @@ class TransferEthERC20FromNear {
         new BN('300000000000000'),
         new BN(0)
       )
+      console.log(`tx withdraw: ${JSON.stringify(txWithdraw)}`)
 
       TransferEthERC20FromNear.recordTransferLog({
         finished: 'withdraw',
@@ -291,7 +292,7 @@ class TransferEthERC20FromNear {
     ethReceiverAddress,
     ethTokenLockerContract,
     ethMasterAccount,
-    web3,
+    robustWeb3,
   }) {
     try {
       // Check that the proof is correct.
@@ -311,16 +312,29 @@ class TransferEthERC20FromNear {
       console.log(
         `ERC20 balance of ${ethReceiverAddress} before the transfer: ${oldBalance}`
       )
-      await ethTokenLockerContract.methods
+      await robustWeb3.callContract(
+        ethTokenLockerContract,
+        'unlockToken',
+        [borshProofRes, clientBlockHeight],
+        {
+          from: ethMasterAccount,
+          gas: 5000000,
+          handleRevert: true,
+          gasPrice: new BN(await robustWeb3.web3.eth.getGasPrice()).mul(
+            new BN(RainbowConfig.getParam('eth-gas-multiplier'))
+          ),
+        }
+      )
+      /*await ethTokenLockerContract.methods
         .unlockToken(borshProofRes, clientBlockHeight)
         .send({
           from: ethMasterAccount,
           gas: 5000000,
           handleRevert: true,
-          gasPrice: new BN(await web3.eth.getGasPrice()).mul(
+          gasPrice: new BN(await robustWeb3.web3.eth.getGasPrice()).mul(
             new BN(RainbowConfig.getParam('eth-gas-multiplier'))
           ),
-        })
+        })*/
       const newBalance = await ethERC20Contract.methods
         .balanceOf(ethReceiverAddress)
         .call()
@@ -478,7 +492,7 @@ class TransferEthERC20FromNear {
         ethReceiverAddress,
         ethTokenLockerContract,
         ethMasterAccount,
-        web3,
+        robustWeb3,
       })
     }
 

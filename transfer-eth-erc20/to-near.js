@@ -29,9 +29,11 @@ class TransferETHERC20ToNear {
     ethSenderAccount,
   }) {
     // Approve tokens for transfer.
-    const lockerAddress = RainbowConfig.getParam('eth-locker-address');
+    const lockerAddress = RainbowConfig.getParam('eth-locker-address')
     try {
-      console.log(`Approving token transfer to ${lockerAddress} ${Number(amount)}.`)
+      console.log(
+        `Approving token transfer to ${lockerAddress} ${Number(amount)}.`
+      )
       await robustWeb3.callContract(
         ethERC20Contract,
         'approve',
@@ -59,7 +61,9 @@ class TransferETHERC20ToNear {
   }) {
     try {
       console.log(
-        `Transferring tokens from the ERC20 account to the token locker account ${Number(amount)}.`
+        `Transferring tokens from the ERC20 account to the token locker account ${Number(
+          amount
+        )}.`
       )
       const transaction = await robustWeb3.callContract(
         ethTokenLockerContract,
@@ -74,7 +78,7 @@ class TransferETHERC20ToNear {
           gas: 5000000,
         }
       )
-      console.log(transaction);
+      console.log(transaction)
       const lockedEvent = transaction.events.Locked
       console.log('Success tranfer to locker')
       TransferETHERC20ToNear.recordTransferLog({
@@ -345,9 +349,15 @@ class TransferETHERC20ToNear {
     )
 
     if (transferLog.finished === undefined) {
+      // TODO fix before using
       // Mint tokens first???
-      await ethERC20Contract.methods.mint(ethSenderAccount, Number(amount)).send({ from: ethSenderAccount, gas: 500000});
-      console.log("Balance: ", await ethERC20Contract.methods.balanceOf(ethSenderAccount).call());
+      /*await ethERC20Contract.methods
+        .mint(ethSenderAccount, Number(amount))
+        .send({ from: ethSenderAccount, gas: 5000000 })*/
+      console.log(
+        'Balance: ',
+        await ethERC20Contract.methods.balanceOf(ethSenderAccount).call()
+      )
       await TransferETHERC20ToNear.approve({
         robustWeb3,
         ethERC20Contract,
