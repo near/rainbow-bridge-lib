@@ -113,13 +113,11 @@ class TransferEthERC20FromNear {
       /*assert(
         RainbowConfig.getParam('near-fun-token-account') !== nearSenderAccountId
       )*/
-      //if (txWithdraw.receipts_outcome.length <= 2) {
+
+      // Getting 1st tx
       const receipts = txWithdraw.transaction_outcome.outcome.receipt_ids
       if (receipts.length === 1) {
         txReceiptId = receipts[0]
-        txReceiptBlockHash = txWithdraw.receipts_outcome.find(
-          (el) => el.id == txReceiptId
-        ).block_hash
         idType = 'receipt'
       } else {
         throw new Error(
@@ -128,13 +126,18 @@ class TransferEthERC20FromNear {
           )}`
         )
       }
-      /*} else {
-        throw new Error(
-          `Fungible token is not expected to perform cross contract calls: ${JSON.stringify(
-            txWithdraw
-          )}`
-        )
-      }*/
+
+      // Getting 2nd tx
+      try {
+        txReceiptId = txWithdraw.receipts_outcome.find(
+          (el) => el.id == txReceiptId
+        ).outcome.status.SuccessReceiptId
+        txReceiptBlockHash = txWithdraw.receipts_outcome.find(
+          (el) => el.id == txReceiptId
+        ).block_hash
+      } catch (e) {
+        throw new Error(`Invalid tx withdraw: ${JSON.stringify(txWithdraw)}`, e)
+      }
 
       // Get block in which the outcome was processed.
       const outcomeBlock = await backoff(10, () =>
