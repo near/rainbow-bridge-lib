@@ -92,6 +92,7 @@ class TransferEthERC20FromNear {
         new BN('300000000000000'),
         new BN(0)
       )
+      console.log(`tx withdraw: ${JSON.stringify(txWithdraw)}`)
 
       TransferEthERC20FromNear.recordTransferLog({
         finished: 'withdraw',
@@ -112,13 +113,11 @@ class TransferEthERC20FromNear {
       /*assert(
         RainbowConfig.getParam('near-fun-token-account') !== nearSenderAccountId
       )*/
-      //if (txWithdraw.receipts_outcome.length <= 2) {
+
+      // Getting 1st tx
       const receipts = txWithdraw.transaction_outcome.outcome.receipt_ids
       if (receipts.length === 1) {
         txReceiptId = receipts[0]
-        txReceiptBlockHash = txWithdraw.receipts_outcome.find(
-          (el) => el.id == txReceiptId
-        ).block_hash
         idType = 'receipt'
       } else {
         throw new Error(
@@ -127,13 +126,18 @@ class TransferEthERC20FromNear {
           )}`
         )
       }
-      /*} else {
-        throw new Error(
-          `Fungible token is not expected to perform cross contract calls: ${JSON.stringify(
-            txWithdraw
-          )}`
-        )
-      }*/
+
+      // Getting 2nd tx
+      try {
+        txReceiptId = txWithdraw.receipts_outcome.find(
+          (el) => el.id == txReceiptId
+        ).outcome.status.SuccessReceiptId
+        txReceiptBlockHash = txWithdraw.receipts_outcome.find(
+          (el) => el.id == txReceiptId
+        ).block_hash
+      } catch (e) {
+        throw new Error(`Invalid tx withdraw: ${JSON.stringify(txWithdraw)}`, e)
+      }
 
       // Get block in which the outcome was processed.
       const outcomeBlock = await backoff(10, () =>
@@ -291,7 +295,7 @@ class TransferEthERC20FromNear {
     ethReceiverAddress,
     ethTokenLockerContract,
     ethMasterAccount,
-    web3,
+    robustWeb3,
   }) {
     try {
       // Check that the proof is correct.
@@ -311,16 +315,29 @@ class TransferEthERC20FromNear {
       console.log(
         `ERC20 balance of ${ethReceiverAddress} before the transfer: ${oldBalance}`
       )
-      await ethTokenLockerContract.methods
+      await robustWeb3.callContract(
+        ethTokenLockerContract,
+        'unlockToken',
+        [borshProofRes, clientBlockHeight],
+        {
+          from: ethMasterAccount,
+          gas: 5000000,
+          handleRevert: true,
+          gasPrice: new BN(await robustWeb3.web3.eth.getGasPrice()).mul(
+            new BN(RainbowConfig.getParam('eth-gas-multiplier'))
+          ),
+        }
+      )
+      /*await ethTokenLockerContract.methods
         .unlockToken(borshProofRes, clientBlockHeight)
         .send({
           from: ethMasterAccount,
           gas: 5000000,
           handleRevert: true,
-          gasPrice: new BN(await web3.eth.getGasPrice()).mul(
+          gasPrice: new BN(await robustWeb3.web3.eth.getGasPrice()).mul(
             new BN(RainbowConfig.getParam('eth-gas-multiplier'))
           ),
-        })
+        })*/
       const newBalance = await ethERC20Contract.methods
         .balanceOf(ethReceiverAddress)
         .call()
@@ -478,7 +495,7 @@ class TransferEthERC20FromNear {
         ethReceiverAddress,
         ethTokenLockerContract,
         ethMasterAccount,
-        web3,
+        robustWeb3,
       })
     }
 
