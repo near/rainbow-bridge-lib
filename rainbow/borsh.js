@@ -287,12 +287,18 @@ class BorshContract {
   constructor(borshSchema, account, contractId, options) {
     this.account = account
     this.contractId = contractId
+    this.ready = this.accessKeyInit();
     options.viewMethods.forEach((d) => {
       Object.defineProperty(this, d.methodName, {
         writable: false,
         enumerable: true,
         value: async (args) => {
-          args = serialize(borshSchema, d.inputFieldType, args)
+          await this.ready;
+          if (d.inputFieldType) {
+            args = serialize(borshSchema, d.inputFieldType, args)
+          } else {
+            args = Buffer.from(JSON.stringify(args))
+          }
           const result = await backoff(10, () =>
             this.account.connection.provider.query(
               `call/${this.contractId}/${d.methodName}`,
@@ -302,15 +308,17 @@ class BorshContract {
           if (result.logs) {
             this.account.printLogs(this.contractId, result.logs)
           }
-          return (
-            result.result &&
-            result.result.length > 0 &&
-            deserialize(
+          let outputValue;
+          if (d.outputFieldType) {
+            outputValue = deserialize(
               borshSchema,
               d.outputFieldType,
               Buffer.from(result.result)
-            )
-          )
+            );
+          } else {
+            outputValue = JSON.parse(result.result);
+          }
+          return outputValue;
         },
       })
     })
@@ -319,8 +327,12 @@ class BorshContract {
         writable: false,
         enumerable: true,
         value: async (args, gas, amount) => {
-          args = serialize(borshSchema, d.inputFieldType, args)
-
+          await this.ready;
+          if (d.inputFieldType) {
+            args = serialize(borshSchema, d.inputFieldType, args);
+          } else {
+            args = Buffer.from(JSON.stringify(args));
+          }
           const rawResult = await signAndSendTransaction(
             this.accessKey,
             this.account,
@@ -336,7 +348,13 @@ class BorshContract {
           )
 
           const result = getBorshTransactionLastResult(rawResult)
-          return result && deserialize(borshSchema, d.outputFieldType, result)
+          let outputValue;
+          if (d.outputFieldType && result) {
+            outputValue = deserialize(borshSchema, d.outputFieldType, result);
+          } else {
+            outputValue = JSON.parse(result);
+          }
+          return outputValue;
         },
       })
     })
@@ -346,7 +364,12 @@ class BorshContract {
         writable: false,
         enumerable: true,
         value: async (args, gas, amount) => {
-          args = serialize(borshSchema, d.inputFieldType, args)
+          await this.ready;
+          if (d.inputFieldType) {
+            args = serialize(borshSchema, d.inputFieldType, args);
+          } else {
+            args = Buffer.from(JSON.stringify(args));
+          }
           return await signAndSendTransactionAsync(
             this.accessKey,
             this.account,
@@ -366,7 +389,7 @@ class BorshContract {
   }
 
   async accessKeyInit() {
-    await this.account.ready
+    await this.account.ready;
 
     this.accessKey = await this.account.findAccessKey()
     if (!this.accessKey) {
