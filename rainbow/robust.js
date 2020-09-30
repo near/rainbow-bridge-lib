@@ -32,7 +32,7 @@ class RobustWeb3 {
   async getBlockNumber() {
     return await backoff(RETRY, async () => {
       try {
-        await this.web3.eth.getBlockNumber()
+        return await this.web3.eth.getBlockNumber()
       } catch (e) {
         if (e && e.toString() === 'Error: connection not open') {
           this.web3.setProvider(this.ethNodeUrl)
