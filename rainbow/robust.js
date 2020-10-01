@@ -51,6 +51,7 @@ class RobustWeb3 {
           // throw so backoff will do retry
           throw new Error('web3.eth.getBlock returns null')
         }
+        return block
       } catch (e) {
         if (e && e.toString() === 'Error: connection not open') {
           this.web3.setProvider(this.ethNodeUrl)
