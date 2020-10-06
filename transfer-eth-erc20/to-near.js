@@ -76,7 +76,7 @@ class TransferETHERC20ToNear {
           gas: 5000000,
         }
       )
-      console.log(transaction)
+      console.log(transaction);
       const lockedEvent = transaction.events.Locked
       console.log('Success tranfer to locker')
       TransferETHERC20ToNear.recordTransferLog({

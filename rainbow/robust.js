@@ -80,10 +80,10 @@ class RobustWeb3 {
         }
         // Call transaction via view method to check if there is specific error.
         try {
-          await this.web3.eth.call(tx)
+          await this.web3.eth.call(tx);
         } catch (error) {
-          console.log(tx.from)
-          console.warn(error)
+          console.log(tx.from);
+          console.warn(error);
         }
 
         let receipt = await promiseWithTimeout(

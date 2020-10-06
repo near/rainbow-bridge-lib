@@ -569,8 +569,8 @@ bs58check@^2.1.2:
 
 bsert@^0.0.10:
   version "0.0.10"
-  resolved "https://registry.yarnpkg.com/bsert/-/bsert-0.0.10.tgz#231ac82873a1418c6ade301ab5cd9ae385895597"
-  integrity sha512-NHNwlac+WPy4t2LoNh8pXk8uaIGH3NSaIUbTTRXGpE2WEbq0te/tDykYHkFK57YKLPjv/aGHmbqvnGeVWDz57Q==
+  resolved "https://r.cnpmjs.org/bsert/download/bsert-0.0.10.tgz#231ac82873a1418c6ade301ab5cd9ae385895597"
+  integrity sha1-IxrIKHOhQYxq3jAatc2a44WJVZc=
 
 buffer-alloc-unsafe@^1.1.0:
   version "1.1.0"
