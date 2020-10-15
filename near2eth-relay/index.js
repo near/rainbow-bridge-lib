@@ -155,6 +155,8 @@ class Near2EthRelay {
     }
   }
 
+  near2eth_client_height =  0
+  near2eth_latest_block_height=  0
   async runInternal(submitInvalidBlock) {
     const clientContract = this.clientContract
     const robustWeb3 = this.robustWeb3
